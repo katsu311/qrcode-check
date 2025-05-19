@@ -1,0 +1,439 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ETCカード番号照合ツール</title>
+   <style>
+        body {
+            font-family: sans-serif;
+            text-align: center;
+            margin: 0;
+            padding: 20px;
+            background-color: #f4f4f4;
+        }
+        h1 {
+            color: #333;
+            margin-bottom: 10px;
+        }
+         p {
+            margin-top: 0;
+            color: #555;
+         }
+        #video-container {
+            position: relative;
+            width: 100%;
+            max-width: 500px; /* 最大幅は維持 */
+            margin: 20px auto;
+            border: 1px solid #ccc;
+            background-color: #000; /* 映像が収まりきらない場合に背景色が見えます */
+            overflow: hidden;
+
+            /* ★ここを修正：最大の高さを再度制限★ */
+            max-height: 300px; /* 例: 最大の高さを300pxに制限。調整してください */
+            height: auto; /* 高さは内容（canvas要素）に合わせる */
+            /* ★ここまで★ */
+        }
+        video {
+            width: 100%;
+            height: auto; /* 高さは自動（アスペクト比依存） */
+            display: block;
+            opacity: 0; /* 映像を透明にして非表示 */
+            position: static; /* 位置指定をデフォルト */
+            top: auto;
+            left: auto;
+        }
+        canvas {
+            position: absolute; /* videoコンテナ全体に重ねるために必要 */
+            top: 0;
+            left: 0;
+            width: 100%; /* 親要素のサイズに合わせる */
+            height: 100%; /* 親要素のサイズに合わせる */
+            display: block; /* 表示 */
+            /* ★ここを追加：canvasの内容（描画された映像）をアスペクト比を保って収める★ */
+            object-fit: contain;
+            /* ★ここまで★ */
+        }
+        #controls {
+            margin-top: 10px;
+            display: flex;
+            justify-content: center;
+            gap: 10px; /* ボタン間のスペース */
+            flex-wrap: wrap; /* ボタンが多すぎても改行 */
+        }
+        #controls button {
+             padding: 10px 15px;
+             font-size: 16px;
+             cursor: pointer;
+             border: none;
+             border-radius: 5px;
+             background-color: #007bff;
+             color: white;
+             transition: background-color 0.3s ease;
+        }
+         #controls button:hover:not(:disabled) {
+            background-color: #0056b3;
+         }
+         #controls button:disabled {
+            background-color: #cccccc;
+            cursor: not-allowed;
+         }
+        #results {
+            margin-top: 20px;
+            text-align: left;
+            max-width: 500px;
+            margin-left: auto;
+            margin-right: auto;
+            background-color: #fff;
+            padding: 15px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        #results p {
+            margin-bottom: 10px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid #eee;
+        }
+        /* 最後のp要素の下線とパディングを削除 */
+        #results p:last-of-type {
+             border-bottom: none;
+             padding-bottom: 0;
+        }
+
+        .status {
+            font-weight: bold;
+            color: #333;
+        }
+        .scanned-code {
+             word-break: break-all; /* 長いコードでも折り返す */
+             font-family: monospace;
+             background-color: #e9e9e9;
+             padding: 5px;
+             border-radius: 4px;
+             display: inline-block; /* コードが長い場合に改行できるように */
+             margin-left: 5px; /* ステータスとの間に隙間 */
+        }
+        /* 判定結果表示用のCSS */
+        #comparison-block-result {
+            font-size: 3em; /* さらに大きく */
+            font-weight: bold;
+            margin-top: 10px; /* 上のラベルとの隙間 */
+            padding: 15px 10px; /* 上下のパディングを大きく */
+            border-radius: 8px; /* 角丸 */
+            text-align: center; /* 中央寄せ */
+            color: white; /* 文字色を白に */
+        }
+
+        #comparison-block-result.match {
+            background-color: green; /* ベタ塗りの緑 */
+             border: none;
+        }
+
+        #comparison-block-result.mismatch {
+            background-color: red; /* ベタ塗りの赤 */
+             border: none;
+        }
+
+        /* 詳細メッセージ用の要素 */
+        #comparison-secondary-message {
+            margin-top: 5px; /* OK/NGブロックとの隙間 */
+            font-size: 1.2em; /* 通常より少し大きく */
+            font-weight: bold; /* 太字 */
+            text-align: center; /* 中央寄せ */
+            color: #333; /* デフォルトの文字色（黒っぽい色） */
+        }
+
+        /* 詳細メッセージの色 */
+        #comparison-secondary-message.match {
+            color: green; /* テキスト色を緑 */
+        }
+
+        #comparison-secondary-message.mismatch {
+            color: red; /* テキスト色を赤 */
+        }
+
+         #camera-error {
+            color: red;
+            margin-top: 10px;
+            font-weight: bold;
+         }
+    </style>
+</head>
+<body>
+
+    <h1>ETCカード番号</br>照合ツール</h1>
+    <p>ETCカード及び車載器のQRコードをスキャンしてください。</p>
+
+    <div id="video-container">
+        <video id="qr-video" autoplay playsinline></video>
+        <canvas id="qr-canvas"></canvas>
+    </div>
+
+    <div id="camera-error" style="display: none;">
+        カメラへのアクセスに失敗しました。<br>
+        このファイルはウェブサーバーから開く必要があります（http:// または https://）。<br>
+        または、ブラウザのサイト設定でカメラアクセスが拒否されている可能性があります。<br>
+        （詳細なエラー: ブラウザのコンソールをご確認ください）
+    </div>
+
+    <div id="controls">
+        <button id="scan1-button">QRコード（１）スキャンする</button>
+        <button id="scan2-button" disabled>QRコード（２）スキャンする</button>
+        <button id="reset-button">リセット</button>
+    </div>
+
+    <div id="results">
+        <p><span class="status">ステータス:</span> <span id="scan-status">カメラを起動しています...</span></p>
+        <p><span class="status">QR1:</span> <span id="code1-result">---</span></p>
+        <p><span class="status">QR2:</span> <span id="code2-result">---</span></p>
+        <p><span class="status">照合結果:</span></p>
+        <div id="comparison-block-result">---</div>
+        <p id="comparison-secondary-message">---</p>
+    </div>
+
+
+    <script src="https://cdn.jsdelivr.net/npm/jsqr@1.1.1/dist/jsQR.min.js"></script>
+    <script>
+        const video = document.getElementById('qr-video');
+        const canvas = document.getElementById('qr-canvas');
+        const canvasContext = canvas.getContext('2d');
+        const scanStatusSpan = document.getElementById('scan-status');
+        const code1ResultSpan = document.getElementById('code1-result');
+        const code2ResultSpan = document.getElementById('code2-result');
+        const scan1Button = document.getElementById('scan1-button');
+        const scan2Button = document.getElementById('scan2-button');
+        const resetButton = document.getElementById('reset-button');
+        const cameraErrorDiv = document.getElementById('camera-error');
+        const comparisonBlockResultDiv = document.getElementById('comparison-block-result');
+        const comparisonSecondaryMessageP = document.getElementById('comparison-secondary-message');
+
+
+        let code1 = null;
+        let code2 = null;
+        let currentScanTarget = 0; // 1: Code1をスキャン中, 2: Code2をスキャン中, 0: スキャン停止中
+        let animationFrameId = null; // requestAnimationFrameのIDを保持
+
+        // カメラを起動
+        async function startCamera() {
+            try {
+                // WebRTC API の getUserMedia を利用してカメラ映像ストリームを取得
+                const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
+                video.srcObject = stream; // 取得したストリームをvideo要素に設定
+                video.setAttribute('playsinline', true); // iPhoneで全画面にならないように
+                video.play();
+                 scanStatusSpan.textContent = '準備ができました。「QRコード（１）を読み取る」を押してください。';
+                 cameraErrorDiv.style.display = 'none'; // エラーメッセージ非表示
+                 // カメラが起動したら、ビデオ映像表示と枠描画のためのtickループを常に開始
+                 // QRコードの検出処理は currentScanTarget が > 0 の時だけ行われる
+                 animationFrameId = requestAnimationFrame(tick);
+
+            } catch (err) {
+                // カメラアクセスに失敗した場合の処理
+                console.error('カメラアクセスエラー:', err); // コンソールにエラー詳細を出力
+                 cameraErrorDiv.style.display = 'block'; // カメラエラー専用の要素を表示
+                // エラーメッセージの内容はHTML側で固定し、statusSpanは短い状態表示のみにする
+                scanStatusSpan.textContent = 'カメラ起動失敗'; // 短い状態表示
+                disableButtons(); // ボタンを全て無効化
+                 // requestAnimationFrame ループは開始しない (startCamera失敗時はtickが呼ばれないため)
+            }
+        }
+
+        // 毎フレームの処理（ビデオ表示と、スキャン中ならQR検出を試みる）
+        function tick() {
+            if (video.readyState === video.HAVE_ENOUGH_DATA) {
+                 // ビデオのサイズをcanvasに合わせる（初回またはリサイズ時）
+                 // object-fit: contain を使っている場合でもcanvasのサイズはvideoコンテナ全体に合わせる
+                 if (canvas.width !== video.videoWidth || canvas.height !== video.videoHeight) {
+                     // canvasサイズはビデオの元の解像度ではなく、表示されているコンテナサイズに合わせるのが適切
+                     // ただし、jsQRは元の解像度に近い方が精度が良い場合があるため、ここではビデオの解像度を使用
+                     // もし表示サイズと元の解像度が大きく異なる場合は調整が必要になるかもしれません
+                     canvas.width = video.videoWidth; // ビデオの元の幅
+                     canvas.height = video.videoHeight; // ビデオの元の高さ
+                 }
+
+                // canvasContext.drawImage の第三引数以降は、canvasのサイズを指定
+                // ビデオフレームをcanvas全体に描画 (これにより枠もコンテナ全体に描ける)
+                canvasContext.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+
+                // currentScanTarget が 1 または 2 の場合のみQRコード検出を試みる
+                if (currentScanTarget > 0) {
+                    // jsQRに渡すImageDataは、canvas全体から取得
+                    const imageData = canvasContext.getImageData(0, 0, canvas.width, canvas.height);
+                    const code = jsQR(imageData.data, imageData.width, imageData.height, {
+                        inversionAttempts: "dontInvert", // 反転した色（白黒反転）のQRコードを検出するかどうか
+                    });
+
+                    if (code) {
+                        // QRコードを検出した場合
+                        // Bounding boxの位置は、canvasのサイズと一致しているImageDataの座標で得られる
+                        drawBoundingBox(code.location); // 検出したコードに枠を描画
+
+                        const currentCode = code.data;
+
+                        if (currentScanTarget === 1 && code1 === null) {
+                            code1 = currentCode;
+                            code1ResultSpan.innerHTML = `<span class="scanned-code">${escapeHTML(code1)}</span>`;
+                            scanStatusSpan.textContent = '最初のQRコードを読み取りました。「QRコード（２）を読み取る」を押してください。';
+                            currentScanTarget = 0; // Code1スキャン終了
+                            scan1Button.disabled = true;
+                            scan2Button.disabled = false;
+                        } else if (currentScanTarget === 2 && code2 === null && currentCode !== code1) {
+                            code2 = currentCode;
+                            code2ResultSpan.innerHTML = `<span class="scanned-code">${escapeHTML(code2)}</span>`;
+                            scanStatusSpan.textContent = '2番目のQRコードを読み取りました。';
+                            currentScanTarget = 0; // Code2スキャン終了
+                            scan2Button.disabled = true;
+                            compareCodes(); // 2つ揃ったので比較
+                        } else if (currentScanTarget === 2 && currentCode === code1) {
+                             // Code2スキャン中にCode1と同じコードを検出。異なるコードを待機。
+                             // console.log("Code2スキャン中にCode1と同じコードを検出。異なるコードを待機。");
+                        }
+                    }
+                }
+            }
+
+             animationFrameId = requestAnimationFrame(tick);
+        }
+
+        // 検出したQRコードの周りに枠を描画
+        function drawBoundingBox(location) {
+            canvasContext.strokeStyle = "#FF0000"; // 赤色
+            canvasContext.lineWidth = 4;
+            canvasContext.beginPath();
+            // canvasサイズに合わせて検出位置をそのまま使用
+            canvasContext.moveTo(location.topLeftCorner.x, location.topLeftCorner.y);
+            canvasContext.lineTo(location.topRightCorner.x, location.topRightCorner.y);
+            canvasContext.lineTo(location.bottomRightCorner.x, location.bottomRightCorner.y);
+            canvasContext.lineTo(location.bottomLeftCorner.x, location.bottomLeftCorner.y);
+            canvasContext.lineTo(location.topLeftCorner.x, location.topLeftCorner.y); // 閉じる
+            canvasContext.stroke();
+        }
+
+        // 2つのコードを特殊ロジックで比較し、結果をブロック表示
+        function compareCodes() {
+            if (code1 !== null && code2 !== null) {
+                const firstTwoCode1 = code1.substring(0, 2); // Code1の最初の2桁
+                const firstTwoCode2 = code2.substring(0, 2); // Code2の最初の2桁
+
+                let isMatch = false; // trueならOK(一致), falseならNG(不一致)
+                // let matchReason = ""; // 内部的な理由、表示には使わない
+
+                if (firstTwoCode1 === firstTwoCode2) {
+                    // 新しいロジック: 最初の2桁が一致したらNG
+                    isMatch = false;
+                    // matchReason = "最初の2桁が一致しました";
+                } else {
+                    // 最初の2桁が一致しない場合
+                    const restCode1 = code1.substring(2); // Code1の3桁目以降
+                    const restCode2 = code2.substring(2); // Code2の3桁目以降
+
+                    if (restCode1 === restCode2) {
+                        // 最初の2桁は異なるが、3桁目以降が一致した場合 -> OK
+                        isMatch = true;
+                        // matchReason = "最初の2桁は異なるが、3桁目以降が一致しました";
+                    } else {
+                        // 最初の2桁も、3桁目以降も一致しない場合 -> NG
+                        isMatch = false;
+                        // matchReason = "最初の2桁も、3桁目以降も一致しませんでした";
+                    }
+                }
+
+                // 結果を新しいブロック要素に表示 (OK/NG ベタ塗り 白抜き)
+                if (isMatch) {
+                    comparisonBlockResultDiv.textContent = 'OK'; // テキストは「OK」
+                    comparisonBlockResultDiv.className = 'match'; // matchクラス（緑色）を適用
+                    // 詳細メッセージを設定
+                    comparisonSecondaryMessageP.textContent = 'ETC番号が一致しました';
+                    comparisonSecondaryMessageP.className = 'match'; // テキスト色も緑に
+                } else {
+                    comparisonBlockResultDiv.textContent = 'NG'; // テキストは「NG」
+                    comparisonBlockResultDiv.className = 'mismatch'; // mismatchクラス（赤色）を適用
+                     // 詳細メッセージを設定
+                    comparisonSecondaryMessageP.textContent = 'ETC番号が一致しませんでした';
+                    comparisonSecondaryMessageP.className = 'mismatch'; // テキスト色も赤に
+                }
+
+            } else {
+                 // コードが2つ揃っていない場合は表示をリセット
+                 comparisonBlockResultDiv.textContent = '---';
+                 comparisonBlockResultDiv.className = ''; // クラスをクリア
+                 // 詳細メッセージをリセット
+                 comparisonSecondaryMessageP.textContent = '---';
+                 comparisonSecondaryMessageP.className = ''; // クラスをクリア
+            }
+        }
+
+         // ボタンを全て無効化するヘルパー関数 (カメラ起動失敗時など)
+         function disableButtons() {
+            scan1Button.disabled = true;
+            scan2Button.disabled = true;
+            resetButton.disabled = true;
+         }
+
+        // ボタンイベントリスナー
+        scan1Button.addEventListener('click', () => {
+            if (code1 === null && currentScanTarget === 0) {
+                 currentScanTarget = 1; // Code1スキャンモード開始
+                 scanStatusSpan.textContent = '最初のQRコードをスキャン中...';
+                 scan1Button.disabled = true;
+                 // 判定結果表示をリセット
+                 comparisonBlockResultDiv.textContent = '---';
+                 comparisonBlockResultDiv.className = '';
+                 comparisonSecondaryMessageP.textContent = '---';
+                 comparisonSecondaryMessageP.className = '';
+            }
+        });
+
+        scan2Button.addEventListener('click', () => {
+            if (code1 !== null && code2 === null && currentScanTarget === 0) {
+                 currentScanTarget = 2; // Code2スキャンモード開始
+                 scanStatusSpan.textContent = '2番目のQRコードをスキャン中... (最初のコードと異なるコードをかざしてください)';
+                 scan2Button.disabled = true;
+                 // 判定結果表示をリセット
+                 comparisonBlockResultDiv.textContent = '---';
+                 comparisonBlockResultDiv.className = '';
+                 comparisonSecondaryMessageP.textContent = '---';
+                 comparisonSecondaryMessageP.className = '';
+            }
+        });
+
+
+        resetButton.addEventListener('click', () => {
+            currentScanTarget = 0; // スキャン停止状態
+            code1 = null;
+            code2 = null;
+            code1ResultSpan.textContent = '---';
+            code2ResultSpan.textContent = '---';
+            scanStatusSpan.textContent = '準備ができました。「QRコード（１）を読み取る」を押してください。';
+            scan1Button.disabled = false;
+            scan2Button.disabled = true;
+             // 判定結果表示をリセット
+             comparisonBlockResultDiv.textContent = '---';
+             comparisonBlockResultDiv.className = '';
+             comparisonSecondaryMessageP.textContent = '---';
+             comparisonSecondaryMessageP.className = '';
+             // canvasをクリアして枠を消す
+             canvasContext.clearRect(0, 0, canvas.width, canvas.height);
+             // ビデオフレームを再描画してクリアした部分を埋める
+             if (video.readyState === video.HAVE_ENOUGH_DATA) {
+                canvasContext.drawImage(video, 0, 0, canvas.width, canvas.height);
+             }
+        });
+
+         // HTMLエスケープ関数 (表示用)
+         function escapeHTML(str) {
+            return str.replace(/&/g, '&amp;')
+                      .replace(/</g, '&lt;')
+                      .replace(/>/g, '&gt;')
+                      .replace(/"/g, '&quot;')
+                      .replace(/'/g, '&#39;');
+         }
+
+        // ページ読み込み時にカメラ起動
+        startCamera();
+
+    </script>
+
+</body>
+</html>
