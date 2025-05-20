@@ -221,7 +221,7 @@
                 video.srcObject = stream; // 取得したストリームをvideo要素に設定
                 video.setAttribute('playsinline', true); // iPhoneで全画面にならないように
                 video.play();
-                 scanStatusSpan.textContent = '準備ができました。「QRコード（１）を読み取る」を押してください。';
+                 scanStatusSpan.textContent = '準備ができました。「QRコード（１）スキャンする」を押してください。';
                  cameraErrorDiv.style.display = 'none'; // エラーメッセージ非表示
                  // カメラが起動したら、ビデオ映像表示と枠描画のためのtickループを常に開始
                  // QRコードの検出処理は currentScanTarget が > 0 の時だけ行われる
@@ -274,7 +274,7 @@
                         if (currentScanTarget === 1 && code1 === null) {
                             code1 = currentCode;
                             code1ResultSpan.innerHTML = `<span class="scanned-code">${escapeHTML(code1)}</span>`;
-                            scanStatusSpan.textContent = '最初のQRコードを読み取りました。「QRコード（２）を読み取る」を押してください。';
+                            scanStatusSpan.textContent = '最初のQRコードを読み取りました。「QRコード（２）スキャンする」を押してください。';
                             currentScanTarget = 0; // Code1スキャン終了
                             scan1Button.disabled = true;
                             scan2Button.disabled = false;
@@ -405,7 +405,7 @@
             code2 = null;
             code1ResultSpan.textContent = '---';
             code2ResultSpan.textContent = '---';
-            scanStatusSpan.textContent = '準備ができました。「QRコード（１）を読み取る」を押してください。';
+            scanStatusSpan.textContent = '準備ができました。「QRコード（１）をスキャン」を押してください。';
             scan1Button.disabled = false;
             scan2Button.disabled = true;
              // 判定結果表示をリセット
