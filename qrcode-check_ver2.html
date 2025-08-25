@@ -1,0 +1,24 @@
+function doPost(e) {
+  // POSTされたデータは e.postData.contents にJSON文字列として入っています
+  const data = JSON.parse(e.postData.contents);
+  
+  // スプレッドシートをIDで取得します
+  const ssId = 'ここに記録用スプレッドシートのIDを貼り付けてください'; // ★★★ 重要な設定箇所 ★★★
+  const sheet = SpreadsheetApp.openById(ssId).getActiveSheet();
+  
+  // スプレッドシートに追記するデータを配列として作成
+  const rowData = [
+    data.timestamp,
+    data.performer,
+    data.result,
+    data.code1,
+    data.code2
+  ];
+  
+  // 最終行にデータを追加
+  sheet.appendRow(rowData);
+  
+  // 成功したことを示すレスポンスを返す（必須ではありませんが、デバッグに役立ちます）
+  return ContentService.createTextOutput(JSON.stringify({ 'status': 'success' }))
+                      .setMimeType(ContentService.MimeType.JSON);
+}
