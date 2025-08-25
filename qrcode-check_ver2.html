@@ -1,519 +1,553 @@
-<!DOCTYPE html>
-<html lang="ja">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ETCカード番号照合ツール</title>
-    <style>
-        body {
-            font-family: sans-serif;
-            text-align: center;
-            margin: 0;
-            padding: 20px;
-            background-color: #f4f4f4;
-        }
-        h1 {
-            color: #333;
-            margin-bottom: 10px;
-        }
-        p {
-            margin-top: 0;
-            color: #555;
-        }
-        #video-container {
-            position: relative;
-            width: 100%;
-            max-width: 500px;
-            margin: 20px auto;
-            border: 1px solid #ccc;
-            background-color: #000;
-            overflow: hidden;
-            /* 修正: max-height を削除または height: auto に */
-            height: auto;
-        }
-        video {
-            width: 100%;
-            height: auto;
-            display: block;
-            /* 修正: opacity を 1 に */
-            opacity: 1;
-            /* 修正: position を absolute に */
-            position: absolute;
-            top: 0;
-            left: 0;
-        }
-        canvas {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            display: block;
-            object-fit: contain;
-        }
-        #controls {
-            margin-top: 10px;
-            display: flex;
-            justify-content: center;
-            gap: 10px;
-            flex-wrap: wrap;
-        }
-        #controls button {
-            padding: 10px 15px;
-            font-size: 16px;
-            cursor: pointer;
-            border: none;
-            border-radius: 5px;
-            background-color: #007bff;
-            color: white;
-            transition: background-color 0.3s ease;
-        }
-        #controls button:hover:not(:disabled) {
-            background-color: #0056b3;
-        }
-        #controls button:disabled {
-            background-color: #cccccc;
-            cursor: not-allowed;
-        }
-        #results {
-            margin-top: 20px;
-            text-align: left;
-            max-width: 500px;
-            margin-left: auto;
-            margin-right: auto;
-            background-color: #fff;
-            padding: 15px;
-            border-radius: 8px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-        }
-        #results p {
-            margin-bottom: 10px;
-            padding-bottom: 10px;
-            border-bottom: 1px solid #eee;
-        }
-        #results p:last-of-type {
-            border-bottom: none;
-            padding-bottom: 0;
-        }
-        .status {
-            font-weight: bold;
-            color: #333;
-        }
-        .scanned-code {
-            word-break: break-all;
-            font-family: monospace;
-            background-color: #e9e9e9;
-            padding: 5px;
-            border-radius: 4px;
-            display: inline-block;
-            margin-left: 5px;
-            font-size: 16px;
-            font-weight: bold;
-        }
-        #comparison-block-result {
-            font-size: 3em;
-            font-weight: bold;
-            margin-top: 10px;
-            padding: 15px 10px;
-            border-radius: 8px;
-            text-align: center;
-            color: white;
-        }
-        #comparison-block-result.match {
-            background-color: green;
-            border: none;
-        }
-        #comparison-block-result.mismatch {
-            background-color: red;
-            border: none;
-        }
-        #comparison-secondary-message {
-            margin-top: 5px;
-            font-size: 1.2em;
-            font-weight: bold;
-            text-align: center;
-            color: #333;
-        }
-        #comparison-secondary-message.match {
-            color: green;
-        }
-        #comparison-secondary-message.mismatch {
-            color: red;
-        }
-        #camera-error {
-            color: red;
-            margin-top: 10px;
-            font-weight: bold;
-        }
-        /* 追加: フォームとボタンのスタイル */
-        #data-input {
-            margin-top: 20px;
-            text-align: center;
-            max-width: 500px;
-            margin-left: auto;
-            margin-right: auto;
-            background-color: #fff;
-            padding: 15px;
-            border-radius: 8px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-        }
-        #data-input label {
-            font-weight: bold;
-            display: block;
-            margin-bottom: 5px;
-        }
-        #data-input input[type="text"] {
-            width: 80%;
-            padding: 10px;
-            font-size: 16px;
-            border: 1px solid #ccc;
-            border-radius: 5px;
-            margin-bottom: 10px;
-        }
-        #data-input button {
-            width: 85%;
-            padding: 12px;
-            font-size: 18px;
-            font-weight: bold;
-            background-color: #28a745; /* 緑色の送信ボタン */
-            color: white;
-            border: none;
-            border-radius: 5px;
-            cursor: pointer;
-            transition: background-color 0.3s ease;
-        }
-        #data-input button:hover:not(:disabled) {
-            background-color: #218838;
-        }
-        #data-input button:disabled {
-            background-color: #cccccc;
-            cursor: not-allowed;
-        }
-        #send-status-message {
-            margin-top: 10px;
-            font-size: 1em;
-            font-weight: bold;
-        }
-    </style>
-</head>
-<body>
-    <h1>ETCカード番号<br>照合ツール</h1>
-    <p>ETCカード及び車載器のQRコードをスキャンしてください。</p>
+<script>
+    const video = document.getElementById('qr-video');
+    const canvas = document.getElementById('qr-canvas');
+    const canvasContext = canvas.getContext('2d');
+    const scanStatusSpan = document.getElementById('scan-status');
+    const code1ResultSpan = document.getElementById('code1-result');
+    const code2ResultSpan = document.getElementById('code2-result');
+    const scan1Button = document.getElementById('scan1-button');
+    const scan2Button = document.getElementById('scan2-button');
+    const resetButton = document.getElementById('reset-button');
+    const cameraErrorDiv = document.getElementById('camera-error');
+    const comparisonBlockResultDiv = document.getElementById('comparison-block-result');
+    const comparisonSecondaryMessageP = document.getElementById('comparison-secondary-message');
+    const currentTimeDisplay = document.getElementById('current-time-display');
+    
+    const performerNameInput = document.getElementById('performer-name');
+    const verifierNameInput = document.getElementById('verifier-name');
+    const sendDataButton = document.getElementById('send-data-button');
+    const sendStatusMessage = document.getElementById('send-status-message');
 
-    <div id="video-container">
-        <video id="qr-video" autoplay playsinline></video>
-        <canvas id="qr-canvas"></canvas>
-    </div>
+    let code1 = null;
+    let code2 = null;
+    let currentScanTarget = 0;
+    let animationFrameId = null;
 
-    <div id="camera-error" style="display: none;">
-        カメラへのアクセスに失敗しました。<br>
-        このファイルはウェブサーバーから開く必要があります（http:// または https://）。<br>
-        または、ブラウザのサイト設定でカメラアクセスが拒否されている可能性があります。<br>
-        （詳細なエラー: ブラウザのコンソールをご確認ください）
-    </div>
+    function updateCurrentTime() {
+        const now = new Date();
+        const year = now.getFullYear();
+        const month = (now.getMonth() + 1).toString().padStart(2, '0');
+        const day = now.getDate().toString().padStart(2, '0');
+        const hours = now.getHours().toString().padStart(2, '0');
+        const minutes = now.getMinutes().toString().padStart(2, '0');
+        
+        currentTimeDisplay.textContent = `現在時刻: ${year}年${month}月${day}日 ${hours}時${minutes}分`;
+    }
 
-    <div id="controls">
-        <button id="scan1-button">QRコード（１）スキャンする</button>
-        <button id="scan2-button" disabled>QRコード（２）スキャンする</button>
-        <button id="reset-button">リセット</button>
-    </div>
-
-    <div id="results">
-        <p id="current-time-display"></p>
-        <p><span class="status">ステータス:</span> <span id="scan-status">カメラを起動しています...</span></p>
-        <p><span class="status">QR1:</span> <span id="code1-result">---</span></p>
-        <p><span class="status">QR2:</span> <span id="code2-result">---</span></p>
-        <p><span class="status">照合結果:</span></p>
-        <div id="comparison-block-result">---</div>
-        <p id="comparison-secondary-message">---</p>
-    </div>
-
-    <div id="data-input">
-        <label for="performer-name">実施者名</label>
-        <input type="text" id="performer-name" placeholder="氏名を入力してください" required>
-        <label for="verifier-name">確認者名</label>
-        <input type="text" id="verifier-name" placeholder="氏名を入力してください" required>
-        <button id="send-data-button" disabled>データを送信する</button>
-        <p id="send-status-message"></p>
-    </div>
-
-    <script src="https://cdn.jsdelivr.net/npm/jsqr@1.1.1/dist/jsQR.min.js"></script>
-    <script>
-        const video = document.getElementById('qr-video');
-        const canvas = document.getElementById('qr-canvas');
-        const canvasContext = canvas.getContext('2d');
-        const scanStatusSpan = document.getElementById('scan-status');
-        const code1ResultSpan = document.getElementById('code1-result');
-        const code2ResultSpan = document.getElementById('code2-result');
-        const scan1Button = document.getElementById('scan1-button');
-        const scan2Button = document.getElementById('scan2-button');
-        const resetButton = document.getElementById('reset-button');
-        const cameraErrorDiv = document.getElementById('camera-error');
-        const comparisonBlockResultDiv = document.getElementById('comparison-block-result');
-        const comparisonSecondaryMessageP = document.getElementById('comparison-secondary-message');
-        const currentTimeDisplay = document.getElementById('current-time-display');
-
-        const performerNameInput = document.getElementById('performer-name');
-        const verifierNameInput = document.getElementById('verifier-name');
-        const sendDataButton = document.getElementById('send-data-button');
-        const sendStatusMessage = document.getElementById('send-status-message');
-
-        let code1 = null;
-        let code2 = null;
-        let currentScanTarget = 0;
-        let animationFrameId = null;
-
-        function updateCurrentTime() {
-            const now = new Date();
-            const year = now.getFullYear();
-            const month = (now.getMonth() + 1).toString().padStart(2, '0');
-            const day = now.getDate().toString().padStart(2, '0');
-            const hours = now.getHours().toString().padStart(2, '0');
-            const minutes = now.getMinutes().toString().padStart(2, '0');
-
-            currentTimeDisplay.textContent = `現在時刻: ${year}年${month}月${day}日 ${hours}時${minutes}分`;
-        }
-
-        async function startCamera() {
-            try {
-                const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
-                video.srcObject = stream;
-                video.setAttribute('playsinline', true);
-                video.play();
-
-                scanStatusSpan.textContent = '準備ができました。「QRコード（１）スキャンする」を押してください。';
-                cameraErrorDiv.style.display = 'none';
-
-                animationFrameId = requestAnimationFrame(tick);
-            } catch (err) {
-                console.error('カメラアクセスエラー:', err);
-                cameraErrorDiv.style.display = 'block';
-                scanStatusSpan.textContent = 'カメラ起動失敗';
-                disableButtons();
-            }
-        }
-
-        function tick() {
-            if (video.readyState === video.HAVE_ENOUGH_DATA) {
-                if (canvas.width !== video.videoWidth || canvas.height !== video.videoHeight) {
-                    canvas.width = video.videoWidth;
-                    canvas.height = video.videoHeight;
-                }
-
-                canvasContext.drawImage(video, 0, 0, canvas.width, canvas.height);
-
-                if (currentScanTarget > 0) {
-                    const imageData = canvasContext.getImageData(0, 0, canvas.width, canvas.height);
-                    const code = jsQR(imageData.data, imageData.width, imageData.height, {
-                        inversionAttempts: "dontInvert",
-                    });
-
-                    if (code) {
-                        drawBoundingBox(code.location);
-
-                        const currentCode = code.data;
-                        if (currentScanTarget === 1 && code1 === null) {
-                            code1 = currentCode;
-                            code1ResultSpan.innerHTML = `<span class="scanned-code">${escapeHTML(code1)}</span>`;
-                            scanStatusSpan.textContent = '最初のQRコードを読み取りました。「QRコード（２）スキャンする」を押してください。';
-                            currentScanTarget = 0;
-                            scan1Button.disabled = true;
-                            scan2Button.disabled = false;
-                        } else if (currentScanTarget === 2 && code2 === null && currentCode !== code1) {
-                            code2 = currentCode;
-                            code2ResultSpan.innerHTML = `<span class="scanned-code">${escapeHTML(code2)}</span>`;
-                            scanStatusSpan.textContent = '2番目のQRコードを読み取りました。';
-                            currentScanTarget = 0;
-                            scan2Button.disabled = true;
-                            compareCodes();
-                        } else if (currentScanTarget === 2 && currentCode === code1) {
-                            // console.log("Code2スキャン中にCode1と同じコードを検出。異なるコードを待機。");
-                        }
-                    }
-                }
-            }
+    async function startCamera() {
+        try {
+            const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
+            video.srcObject = stream;
+            video.setAttribute('playsinline', true);
+            video.play();
+            
+            scanStatusSpan.textContent = '準備ができました。「QRコード（１）スキャンする」を押してください。';
+            cameraErrorDiv.style.display = 'none';
+            
             animationFrameId = requestAnimationFrame(tick);
+        } catch (err) {
+            console.error('カメラアクセスエラー:', err);
+            cameraErrorDiv.style.display = 'block';
+            scanStatusSpan.textContent = 'カメラ起動失敗';
+            disableButtons();
         }
+    }
 
-        function drawBoundingBox(location) {
-            canvasContext.strokeStyle = "#FF0000";
-            canvasContext.lineWidth = 4;
-            canvasContext.beginPath();
-            canvasContext.moveTo(location.topLeftCorner.x, location.topLeftCorner.y);
-            canvasContext.lineTo(location.topRightCorner.x, location.topRightCorner.y);
-            canvasContext.lineTo(location.bottomRightCorner.x, location.bottomRightCorner.y);
-            canvasContext.lineTo(location.bottomLeftCorner.x, location.bottomLeftCorner.y);
-            canvasContext.lineTo(location.topLeftCorner.x, location.topLeftCorner.y);
-            canvasContext.stroke();
-        }
+    function tick() {
+        if (video.readyState === video.HAVE_ENOUGH_DATA) {
+            if (canvas.width !== video.videoWidth || canvas.height !== video.videoHeight) {
+                canvas.width = video.videoWidth;
+                canvas.height = video.videoHeight;
+            }
+            
+            canvasContext.drawImage(video, 0, 0, canvas.width, canvas.height);
+            
+            if (currentScanTarget > 0) {
+                const imageData = canvasContext.getImageData(0, 0, canvas.width, canvas.height);
+                const code = jsQR(imageData.data, imageData.width, imageData.height, {
+                    inversionAttempts: "dontInvert",
+                });
 
-        function compareCodes() {
-            if (code1 !== null && code2 !== null) {
-                const firstTwoCode1 = code1.substring(0, 2);
-                const firstTwoCode2 = code2.substring(0, 2);
-
-                let isMatch = false;
-
-                if (firstTwoCode1 === firstTwoCode2) {
-                    isMatch = false;
-                } else {
-                    const restCode1 = code1.substring(2);
-                    const restCode2 = code2.substring(2);
-
-                    if (restCode1 === restCode2) {
-                        isMatch = true;
-                    } else {
-                        isMatch = false;
+                if (code) {
+                    drawBoundingBox(code.location);
+                    
+                    const currentCode = code.data;
+                    if (currentScanTarget === 1 && code1 === null) {
+                        code1 = currentCode;
+                        code1ResultSpan.innerHTML = `<span class="scanned-code">${escapeHTML(code1)}</span>`;
+                        scanStatusSpan.textContent = '最初のQRコードを読み取りました。「QRコード（２）スキャンする」を押してください。';
+                        currentScanTarget = 0;
+                        scan1Button.disabled = true;
+                        scan2Button.disabled = false;
+                    } else if (currentScanTarget === 2 && code2 === null && currentCode !== code1) {
+                        code2 = currentCode;
+                        code2ResultSpan.innerHTML = `<span class="scanned-code">${escapeHTML(code2)}</span>`;
+                        scanStatusSpan.textContent = '2番目のQRコードを読み取りました。';
+                        currentScanTarget = 0;
+                        scan2Button.disabled = true;
+                        compareCodes();
+                    } else if (currentScanTarget === 2 && currentCode === code1) {
+                        // console.log("Code2スキャン中にCode1と同じコードを検出。異なるコードを待機。");
                     }
                 }
+            }
+        }
+        animationFrameId = requestAnimationFrame(tick);
+    }
 
-                if (isMatch) {
-                    comparisonBlockResultDiv.textContent = 'OK';
-                    comparisonBlockResultDiv.className = 'match';
-                    comparisonSecondaryMessageP.textContent = 'ETC番号が一致しました';
-                    comparisonSecondaryMessageP.className = 'match';
-                } else {
-                    comparisonBlockResultDiv.textContent = 'NG';
-                    comparisonBlockResultDiv.className = 'mismatch';
-                    comparisonSecondaryMessageP.textContent = 'ETC番号が一致しませんでした';
-                    comparisonSecondaryMessageP.className = 'mismatch';
-                }
-                
-                checkIfReadyToSend();
+    function drawBoundingBox(location) {
+        canvasContext.strokeStyle = "#FF0000";
+        canvasContext.lineWidth = 4;
+        canvasContext.beginPath();
+        canvasContext.moveTo(location.topLeftCorner.x, location.topLeftCorner.y);
+        canvasContext.lineTo(location.topRightCorner.x, location.topRightCorner.y);
+        canvasContext.lineTo(location.bottomRightCorner.x, location.bottomRightCorner.y);
+        canvasContext.lineTo(location.bottomLeftCorner.x, location.bottomLeftCorner.y);
+        canvasContext.lineTo(location.topLeftCorner.x, location.topLeftCorner.y);
+        canvasContext.stroke();
+    }
+
+    function compareCodes() {
+        if (code1 !== null && code2 !== null) {
+            const firstTwoCode1 = code1.substring(0, 2);
+            const firstTwoCode2 = code2.substring(0, 2);
+            
+            let isMatch = false;
+            
+            if (firstTwoCode1 === firstTwoCode2) {
+                isMatch = false;
             } else {
-                comparisonBlockResultDiv.textContent = '---';
-                comparisonBlockResultDiv.className = '';
-                comparisonSecondaryMessageP.textContent = '---';
-                comparisonSecondaryMessageP.className = '';
-                checkIfReadyToSend();
-            }
-        }
+                const restCode1 = code1.substring(2);
+                const restCode2 = code2.substring(2);
 
-        function disableButtons() {
+                if (restCode1 === restCode2) {
+                    isMatch = true;
+                } else {
+                    isMatch = false;
+                }
+            }
+
+            if (isMatch) {
+                comparisonBlockResultDiv.textContent = 'OK';
+                comparisonBlockResultDiv.className = 'match';
+                comparisonSecondaryMessageP.textContent = 'ETC番号が一致しました';
+                comparisonSecondaryMessageP.className = 'match';
+            } else {
+                comparisonBlockResultDiv.textContent = 'NG';
+                comparisonBlockResultDiv.className = 'mismatch';
+                comparisonSecondaryMessageP.textContent = 'ETC番号が一致しませんでした';
+                comparisonSecondaryMessageP.className = 'mismatch';
+            }
+                
+            checkIfReadyToSend();
+        } else {
+            comparisonBlockResultDiv.textContent = '---';
+            comparisonBlockResultDiv.className = '';
+            comparisonSecondaryMessageP.textContent = '---';
+            comparisonSecondaryMessageP.className = '';
+            checkIfReadyToSend();
+        }
+    }
+    
+    function disableButtons() {
+        scan1Button.disabled = true;
+        scan2Button.disabled = true;
+        resetButton.disabled = true;
+        sendDataButton.disabled = true;
+    }
+
+    scan1Button.addEventListener('click', () => {
+        if (code1 === null && currentScanTarget === 0) {
+            currentScanTarget = 1;
+            scanStatusSpan.textContent = '最初のQRコードをスキャン中...';
             scan1Button.disabled = true;
-            scan2Button.disabled = true;
-            resetButton.disabled = true;
-            sendDataButton.disabled = true;
+            comparisonBlockResultDiv.textContent = '---';
+            comparisonBlockResultDiv.className = '';
+            comparisonSecondaryMessageP.textContent = '---';
+            comparisonSecondaryMessageP.className = '';
+            checkIfReadyToSend();
         }
+    });
 
-        scan1Button.addEventListener('click', () => {
-            if (code1 === null && currentScanTarget === 0) {
-                currentScanTarget = 1;
-                scanStatusSpan.textContent = '最初のQRコードをスキャン中...';
-                scan1Button.disabled = true;
-                comparisonBlockResultDiv.textContent = '---';
-                comparisonBlockResultDiv.className = '';
-                comparisonSecondaryMessageP.textContent = '---';
-                comparisonSecondaryMessageP.className = '';
-                checkIfReadyToSend();
-            }
-        });
-
-        scan2Button.addEventListener('click', () => {
-            if (code1 !== null && code2 === null && currentScanTarget === 0) {
-                currentScanTarget = 2;
-                scanStatusSpan.textContent = '2番目のQRコードをスキャン中... (最初のコードと異なるコードをかざしてください)';
-                scan2Button.disabled = true;
-                comparisonBlockResultDiv.textContent = '---';
-                comparisonBlockResultDiv.className = '';
-                comparisonSecondaryMessageP.textContent = '---';
-                comparisonSecondaryMessageP.className = '';
-                checkIfReadyToSend();
-            }
-        });
-
-        resetButton.addEventListener('click', () => {
-            currentScanTarget = 0;
-            code1 = null;
-            code2 = null;
-            code1ResultSpan.textContent = '---';
-            code2ResultSpan.textContent = '---';
-            scanStatusSpan.textContent = '準備ができました。「QRコード（１）をスキャン」を押してください。';
-            scan1Button.disabled = false;
+    scan2Button.addEventListener('click', () => {
+        if (code1 !== null && code2 === null && currentScanTarget === 0) {
+            currentScanTarget = 2;
+            scanStatusSpan.textContent = '2番目のQRコードをスキャン中... (最初のコードと異なるコードをかざしてください)';
             scan2Button.disabled = true;
             comparisonBlockResultDiv.textContent = '---';
             comparisonBlockResultDiv.className = '';
             comparisonSecondaryMessageP.textContent = '---';
             comparisonSecondaryMessageP.className = '';
-            canvasContext.clearRect(0, 0, canvas.width, canvas.height);
-            if (video.readyState === video.HAVE_ENOUGH_DATA) {
-                canvasContext.drawImage(video, 0, 0, canvas.width, canvas.height);
-            }
             checkIfReadyToSend();
-        });
-
-        function escapeHTML(str) {
-            return str.replace(/&/g, '&amp;')
-                      .replace(/</g, '&lt;')
-                      .replace(/>/g, '&gt;')
-                      .replace(/"/g, '&quot;')
-                      .replace(/'/g, '&#39;');
         }
+    });
 
-        /**
-         * データを送信できる状態かチェックし、送信ボタンを有効/無効化する
-         */
-        function checkIfReadyToSend() {
-            const isScannedAndCompared = code1 !== null && code2 !== null && comparisonBlockResultDiv.textContent !== '---';
-            const isPerformerNameEntered = performerNameInput.value.trim() !== '';
-            const isVerifierNameEntered = verifierNameInput.value.trim() !== '';
-
-            sendDataButton.disabled = !(isScannedAndCompared && isPerformerNameEntered && isVerifierNameEntered);
+    resetButton.addEventListener('click', () => {
+        currentScanTarget = 0;
+        code1 = null;
+        code2 = null;
+        code1ResultSpan.textContent = '---';
+        code2ResultSpan.textContent = '---';
+        scanStatusSpan.textContent = '準備ができました。「QRコード（１）をスキャン」を押してください。';
+        scan1Button.disabled = false;
+        scan2Button.disabled = true;
+        comparisonBlockResultDiv.textContent = '---';
+        comparisonBlockResultDiv.className = '';
+        comparisonSecondaryMessageP.textContent = '---';
+        comparisonSecondaryMessageP.className = '';
+        canvasContext.clearRect(0, 0, canvas.width, canvas.height);
+        if (video.readyState === video.HAVE_ENOUGH_DATA) {
+            canvasContext.drawImage(video, 0, 0, canvas.width, canvas.height);
         }
+        checkIfReadyToSend();
+    });
 
-        /**
-         * 外部API（GAS）にデータをPOST送信する関数
-         */
-        async function sendDataToApi() {
-            const endpointUrl = 'https://script.google.com/macros/s/AKfycbwV00jAGgvWg_vFQeiEZwpqYcgH1kSN2mEnZ6KT8dUiUQnEfpJYL0IPYPtccsBIEiOz0g/exec';
+    function escapeHTML(str) {
+        return str.replace(/&/g, '&amp;')
+                  .replace(/</g, '&lt;')
+                  .replace(/>/g, '&gt;')
+                  .replace(/"/g, '&quot;')
+                  .replace(/'/g, '&#39;');
+    }
+    
+    /**
+     * データを送信できる状態かチェックし、送信ボタンを有効/無効化する
+     */
+    function checkIfReadyToSend() {
+        const isScannedAndCompared = code1 !== null && code2 !== null && comparisonBlockResultDiv.textContent !== '---';
+        const isPerformerNameEntered = performerNameInput.value.trim() !== '';
+        const isVerifierNameEntered = verifierNameInput.value.trim() !== '';
 
-            const dataToSend = {
-                timestamp: new Date().toISOString(),
-                performer: performerNameInput.value.trim(),
-                verifier: verifierNameInput.value.trim(),
-                result: comparisonBlockResultDiv.textContent,
-                code1: code1,
-                code2: code2
-            };
+        sendDataButton.disabled = !(isScannedAndCompared && isPerformerNameEntered && isVerifierNameEntered);
+    }
 
-            sendDataButton.disabled = true;
-            performerNameInput.disabled = true;
-            verifierNameInput.disabled = true;
-            sendStatusMessage.textContent = '送信中...';
-            sendStatusMessage.style.color = '#333';
+    /**
+     * 外部API（GAS）にデータをPOST送信する関数
+     */
+    async function sendDataToApi() {
+        const endpointUrl = 'https://script.google.com/macros/s/AKfycbwV00jAGgvWg_vFQeiEZwpqYcgH1kSN2mEnZ6KT8dUiUQnEfpJYL0IPYPtccsBIEiOz0g/exec';
 
-            try {
-                const response = await fetch(endpointUrl, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify(dataToSend),
-                    mode: 'no-cors'
+        const dataToSend = {
+            timestamp: new Date().toISOString(),
+            performer: performerNameInput.value.trim(),
+            verifier: verifierNameInput.value.trim(),
+            result: comparisonBlockResultDiv.textContent,
+            code1: code1,
+            code2: code2
+        };
+
+        sendDataButton.disabled = true;
+        performerNameInput.disabled = true;
+        verifierNameInput.disabled = true;
+        sendStatusMessage.textContent = '送信中...';
+        sendStatusMessage.style.color = '#333';
+
+        try {
+            const response = await fetch(endpointUrl, {
+                method: 'POST',
+                headers: {
+         <script>
+    const video = document.getElementById('qr-video');
+    const canvas = document.getElementById('qr-canvas');
+    const canvasContext = canvas.getContext('2d');
+    const scanStatusSpan = document.getElementById('scan-status');
+    const code1ResultSpan = document.getElementById('code1-result');
+    const code2ResultSpan = document.getElementById('code2-result');
+    const scan1Button = document.getElementById('scan1-button');
+    const scan2Button = document.getElementById('scan2-button');
+    const resetButton = document.getElementById('reset-button');
+    const cameraErrorDiv = document.getElementById('camera-error');
+    const comparisonBlockResultDiv = document.getElementById('comparison-block-result');
+    const comparisonSecondaryMessageP = document.getElementById('comparison-secondary-message');
+    const currentTimeDisplay = document.getElementById('current-time-display');
+    
+    const performerNameInput = document.getElementById('performer-name');
+    const verifierNameInput = document.getElementById('verifier-name');
+    const sendDataButton = document.getElementById('send-data-button');
+    const sendStatusMessage = document.getElementById('send-status-message');
+
+    let code1 = null;
+    let code2 = null;
+    let currentScanTarget = 0;
+    let animationFrameId = null;
+
+    function updateCurrentTime() {
+        const now = new Date();
+        const year = now.getFullYear();
+        const month = (now.getMonth() + 1).toString().padStart(2, '0');
+        const day = now.getDate().toString().padStart(2, '0');
+        const hours = now.getHours().toString().padStart(2, '0');
+        const minutes = now.getMinutes().toString().padStart(2, '0');
+        
+        currentTimeDisplay.textContent = `現在時刻: ${year}年${month}月${day}日 ${hours}時${minutes}分`;
+    }
+
+    async function startCamera() {
+        try {
+            const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
+            video.srcObject = stream;
+            video.setAttribute('playsinline', true);
+            video.play();
+            
+            scanStatusSpan.textContent = '準備ができました。「QRコード（１）スキャンする」を押してください。';
+            cameraErrorDiv.style.display = 'none';
+            
+            animationFrameId = requestAnimationFrame(tick);
+        } catch (err) {
+            console.error('カメラアクセスエラー:', err);
+            cameraErrorDiv.style.display = 'block';
+            scanStatusSpan.textContent = 'カメラ起動失敗';
+            disableButtons();
+        }
+    }
+
+    function tick() {
+        if (video.readyState === video.HAVE_ENOUGH_DATA) {
+            if (canvas.width !== video.videoWidth || canvas.height !== video.videoHeight) {
+                canvas.width = video.videoWidth;
+                canvas.height = video.videoHeight;
+            }
+            
+            canvasContext.drawImage(video, 0, 0, canvas.width, canvas.height);
+            
+            if (currentScanTarget > 0) {
+                const imageData = canvasContext.getImageData(0, 0, canvas.width, canvas.height);
+                const code = jsQR(imageData.data, imageData.width, imageData.height, {
+                    inversionAttempts: "dontInvert",
                 });
 
-                sendStatusMessage.textContent = 'データが正常に送信されました！ ✅';
-                sendStatusMessage.style.color = 'green';
-
-            } catch (error) {
-                console.error('送信エラー:', error);
-                sendStatusMessage.textContent = 'データの送信に失敗しました。再試行してください。';
-                sendStatusMessage.style.color = 'red';
-
-            } finally {
-                sendDataButton.disabled = false;
-                performerNameInput.disabled = false;
-                verifierNameInput.disabled = false;
+                if (code) {
+                    drawBoundingBox(code.location);
+                    
+                    const currentCode = code.data;
+                    if (currentScanTarget === 1 && code1 === null) {
+                        code1 = currentCode;
+                        code1ResultSpan.innerHTML = `<span class="scanned-code">${escapeHTML(code1)}</span>`;
+                        scanStatusSpan.textContent = '最初のQRコードを読み取りました。「QRコード（２）スキャンする」を押してください。';
+                        currentScanTarget = 0;
+                        scan1Button.disabled = true;
+                        scan2Button.disabled = false;
+                    } else if (currentScanTarget === 2 && code2 === null && currentCode !== code1) {
+                        code2 = currentCode;
+                        code2ResultSpan.innerHTML = `<span class="scanned-code">${escapeHTML(code2)}</span>`;
+                        scanStatusSpan.textContent = '2番目のQRコードを読み取りました。';
+                        currentScanTarget = 0;
+                        scan2Button.disabled = true;
+                        compareCodes();
+                    } else if (currentScanTarget === 2 && currentCode === code1) {
+                        // console.log("Code2スキャン中にCode1と同じコードを検出。異なるコードを待機。");
+                    }
+                }
             }
         }
+        animationFrameId = requestAnimationFrame(tick);
+    }
 
-        sendDataButton.addEventListener('click', sendDataToApi);
-        performerNameInput.addEventListener('input', checkIfReadyToSend);
-        verifierNameInput.addEventListener('input', checkIfReadyToSend);
-        
-        startCamera();
-        updateCurrentTime();
-        setInterval(updateCurrentTime, 60 * 1000);
-    </script>
-</body>
-</html>
+    function drawBoundingBox(location) {
+        canvasContext.strokeStyle = "#FF0000";
+        canvasContext.lineWidth = 4;
+        canvasContext.beginPath();
+        canvasContext.moveTo(location.topLeftCorner.x, location.topLeftCorner.y);
+        canvasContext.lineTo(location.topRightCorner.x, location.topRightCorner.y);
+        canvasContext.lineTo(location.bottomRightCorner.x, location.bottomRightCorner.y);
+        canvasContext.lineTo(location.bottomLeftCorner.x, location.bottomLeftCorner.y);
+        canvasContext.lineTo(location.topLeftCorner.x, location.topLeftCorner.y);
+        canvasContext.stroke();
+    }
+
+    function compareCodes() {
+        if (code1 !== null && code2 !== null) {
+            const firstTwoCode1 = code1.substring(0, 2);
+            const firstTwoCode2 = code2.substring(0, 2);
+            
+            let isMatch = false;
+            
+            if (firstTwoCode1 === firstTwoCode2) {
+                isMatch = false;
+            } else {
+                const restCode1 = code1.substring(2);
+                const restCode2 = code2.substring(2);
+
+                if (restCode1 === restCode2) {
+                    isMatch = true;
+                } else {
+                    isMatch = false;
+                }
+            }
+
+            if (isMatch) {
+                comparisonBlockResultDiv.textContent = 'OK';
+                comparisonBlockResultDiv.className = 'match';
+                comparisonSecondaryMessageP.textContent = 'ETC番号が一致しました';
+                comparisonSecondaryMessageP.className = 'match';
+            } else {
+                comparisonBlockResultDiv.textContent = 'NG';
+                comparisonBlockResultDiv.className = 'mismatch';
+                comparisonSecondaryMessageP.textContent = 'ETC番号が一致しませんでした';
+                comparisonSecondaryMessageP.className = 'mismatch';
+            }
+                
+            checkIfReadyToSend();
+        } else {
+            comparisonBlockResultDiv.textContent = '---';
+            comparisonBlockResultDiv.className = '';
+            comparisonSecondaryMessageP.textContent = '---';
+            comparisonSecondaryMessageP.className = '';
+            checkIfReadyToSend();
+        }
+    }
+    
+    function disableButtons() {
+        scan1Button.disabled = true;
+        scan2Button.disabled = true;
+        resetButton.disabled = true;
+        sendDataButton.disabled = true;
+    }
+
+    scan1Button.addEventListener('click', () => {
+        if (code1 === null && currentScanTarget === 0) {
+            currentScanTarget = 1;
+            scanStatusSpan.textContent = '最初のQRコードをスキャン中...';
+            scan1Button.disabled = true;
+            comparisonBlockResultDiv.textContent = '---';
+            comparisonBlockResultDiv.className = '';
+            comparisonSecondaryMessageP.textContent = '---';
+            comparisonSecondaryMessageP.className = '';
+            checkIfReadyToSend();
+        }
+    });
+
+    scan2Button.addEventListener('click', () => {
+        if (code1 !== null && code2 === null && currentScanTarget === 0) {
+            currentScanTarget = 2;
+            scanStatusSpan.textContent = '2番目のQRコードをスキャン中... (最初のコードと異なるコードをかざしてください)';
+            scan2Button.disabled = true;
+            comparisonBlockResultDiv.textContent = '---';
+            comparisonBlockResultDiv.className = '';
+            comparisonSecondaryMessageP.textContent = '---';
+            comparisonSecondaryMessageP.className = '';
+            checkIfReadyToSend();
+        }
+    });
+
+    resetButton.addEventListener('click', () => {
+        currentScanTarget = 0;
+        code1 = null;
+        code2 = null;
+        code1ResultSpan.textContent = '---';
+        code2ResultSpan.textContent = '---';
+        scanStatusSpan.textContent = '準備ができました。「QRコード（１）をスキャン」を押してください。';
+        scan1Button.disabled = false;
+        scan2Button.disabled = true;
+        comparisonBlockResultDiv.textContent = '---';
+        comparisonBlockResultDiv.className = '';
+        comparisonSecondaryMessageP.textContent = '---';
+        comparisonSecondaryMessageP.className = '';
+        canvasContext.clearRect(0, 0, canvas.width, canvas.height);
+        if (video.readyState === video.HAVE_ENOUGH_DATA) {
+            canvasContext.drawImage(video, 0, 0, canvas.width, canvas.height);
+        }
+        checkIfReadyToSend();
+    });
+
+    function escapeHTML(str) {
+        return str.replace(/&/g, '&amp;')
+                  .replace(/</g, '&lt;')
+                  .replace(/>/g, '&gt;')
+                  .replace(/"/g, '&quot;')
+                  .replace(/'/g, '&#39;');
+    }
+    
+    /**
+     * データを送信できる状態かチェックし、送信ボタンを有効/無効化する
+     */
+    function checkIfReadyToSend() {
+        const isScannedAndCompared = code1 !== null && code2 !== null && comparisonBlockResultDiv.textContent !== '---';
+        const isPerformerNameEntered = performerNameInput.value.trim() !== '';
+        const isVerifierNameEntered = verifierNameInput.value.trim() !== '';
+
+        sendDataButton.disabled = !(isScannedAndCompared && isPerformerNameEntered && isVerifierNameEntered);
+    }
+
+    /**
+     * 外部API（GAS）にデータをPOST送信する関数
+     */
+    async function sendDataToApi() {
+        const endpointUrl = 'https://script.google.com/macros/s/AKfycbwV00jAGgvWg_vFQeiEZwpqYcgH1kSN2mEnZ6KT8dUiUQnEfpJYL0IPYPtccsBIEiOz0g/exec';
+
+        const dataToSend = {
+            timestamp: new Date().toISOString(),
+            performer: performerNameInput.value.trim(),
+            verifier: verifierNameInput.value.trim(),
+            result: comparisonBlockResultDiv.textContent,
+            code1: code1,
+            code2: code2
+        };
+
+        sendDataButton.disabled = true;
+        performerNameInput.disabled = true;
+        verifierNameInput.disabled = true;
+        sendStatusMessage.textContent = '送信中...';
+        sendStatusMessage.style.color = '#333';
+
+        try {
+            const response = await fetch(endpointUrl, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(dataToSend),
+                mode: 'no-cors'
+            });
+            
+            sendStatusMessage.textContent = 'データが正常に送信されました！ ✅';
+            sendStatusMessage.style.color = 'green';
+            
+        } catch (error) {
+            console.error('送信エラー:', error);
+            sendStatusMessage.textContent = 'データの送信に失敗しました。再試行してください。';
+            sendStatusMessage.style.color = 'red';
+            
+        } finally {
+            sendDataButton.disabled = false;
+            performerNameInput.disabled = false;
+            verifierNameInput.disabled = false;
+        }
+    }
+
+    sendDataButton.addEventListener('click', sendDataToApi);
+    performerNameInput.addEventListener('input', checkIfReadyToSend);
+    verifierNameInput.addEventListener('input', checkIfReadyToSend);
+    
+    startCamera();
+    updateCurrentTime();
+    setInterval(updateCurrentTime, 60 * 1000);
+</script>           'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(dataToSend),
+                mode: 'no-cors'
+            });
+            
+            sendStatusMessage.textContent = 'データが正常に送信されました！ ✅';
+            sendStatusMessage.style.color = 'green';
+            
+        } catch (error) {
+            console.error('送信エラー:', error);
+            sendStatusMessage.textContent = 'データの送信に失敗しました。再試行してください。';
+            sendStatusMessage.style.color = 'red';
+            
+        } finally {
+            sendDataButton.disabled = false;
+            performerNameInput.disabled = false;
+            verifierNameInput.disabled = false;
+        }
+    }
+
+    sendDataButton.addEventListener('click', sendDataToApi);
+    performerNameInput.addEventListener('input', checkIfReadyToSend);
+    verifierNameInput.addEventListener('input', checkIfReadyToSend);
+    
+    startCamera();
+    updateCurrentTime();
+    setInterval(updateCurrentTime, 60 * 1000);
+</script>
