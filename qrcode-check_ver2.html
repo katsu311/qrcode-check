@@ -1,12 +1,12 @@
 function doPost(e) {
-  // POST‚³‚ê‚½ƒf[ƒ^‚Í e.postData.contents ‚ÉJSON•¶š—ñ‚Æ‚µ‚Ä“ü‚Á‚Ä‚¢‚Ü‚·
+  // POSTã•ã‚ŒãŸãƒ‡ãƒ¼ã‚¿ã¯ e.postData.contents ã«JSONæ–‡å­—åˆ—ã¨ã—ã¦å…¥ã£ã¦ã„ã¾ã™
   const data = JSON.parse(e.postData.contents);
   
-  // ƒXƒvƒŒƒbƒhƒV[ƒg‚ğID‚Åæ“¾‚µ‚Ü‚·
-  const ssId = '‚±‚±‚É‹L˜^—pƒXƒvƒŒƒbƒhƒV[ƒg‚ÌID‚ğ“\‚è•t‚¯‚Ä‚­‚¾‚³‚¢'; // ššš d—v‚Èİ’è‰ÓŠ ššš
+  // ã‚¹ãƒ—ãƒ¬ãƒƒãƒ‰ã‚·ãƒ¼ãƒˆã‚’IDã§å–å¾—ã—ã¾ã™
+  const ssId = 'ã“ã“ã«è¨˜éŒ²ç”¨ã‚¹ãƒ—ãƒ¬ãƒƒãƒ‰ã‚·ãƒ¼ãƒˆã®IDã‚’è²¼ã‚Šä»˜ã‘ã¦ãã ã•ã„'; // â˜…â˜…â˜… é‡è¦ãªè¨­å®šç®‡æ‰€ â˜…â˜…â˜…
   const sheet = SpreadsheetApp.openById(ssId).getActiveSheet();
   
-  // ƒXƒvƒŒƒbƒhƒV[ƒg‚É’Ç‹L‚·‚éƒf[ƒ^‚ğ”z—ñ‚Æ‚µ‚Äì¬
+  // ã‚¹ãƒ—ãƒ¬ãƒƒãƒ‰ã‚·ãƒ¼ãƒˆã«è¿½è¨˜ã™ã‚‹ãƒ‡ãƒ¼ã‚¿ã‚’é…åˆ—ã¨ã—ã¦ä½œæˆ
   const rowData = [
     data.timestamp,
     data.performer,
@@ -15,10 +15,10 @@ function doPost(e) {
     data.code2
   ];
   
-  // ÅIs‚Éƒf[ƒ^‚ğ’Ç‰Á
+  // æœ€çµ‚è¡Œã«ãƒ‡ãƒ¼ã‚¿ã‚’è¿½åŠ 
   sheet.appendRow(rowData);
   
-  // ¬Œ÷‚µ‚½‚±‚Æ‚ğ¦‚·ƒŒƒXƒ|ƒ“ƒX‚ğ•Ô‚·i•K{‚Å‚Í‚ ‚è‚Ü‚¹‚ñ‚ªAƒfƒoƒbƒO‚É–ğ—§‚¿‚Ü‚·j
+  // æˆåŠŸã—ãŸã“ã¨ã‚’ç¤ºã™ãƒ¬ã‚¹ãƒãƒ³ã‚¹ã‚’è¿”ã™ï¼ˆå¿…é ˆã§ã¯ã‚ã‚Šã¾ã›ã‚“ãŒã€ãƒ‡ãƒãƒƒã‚°ã«å½¹ç«‹ã¡ã¾ã™ï¼‰
   return ContentService.createTextOutput(JSON.stringify({ 'status': 'success' }))
                       .setMimeType(ContentService.MimeType.JSON);
 }
