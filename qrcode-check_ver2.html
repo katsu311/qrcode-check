@@ -155,7 +155,7 @@
         }
         #camera-error {
             color: red;
-            margin-top: 10px;
+            margin: 10px auto 0 auto;
             font-weight: bold;
         }
         #data-input {
@@ -219,15 +219,15 @@
 
     <div id="camera-error" style="display: none;">
         カメラへのアクセスに失敗しました。<br>
-        このファイルはウェブサーバーから開く必要があります（http:// または https://）。<br>
-        または、ブラウザのサイト設定でカメラアクセスが拒否されている可能性があります。<br>
-        （詳細なエラー: ブラウザのコンソールをご確認ください）
+        このファイルはウェブサーバーから開く必要があります。<br>（http:// または https://）<br>
+        または、ブラウザのサイト設定でカメラアクセスが<br>拒否されている可能性があります。<br>
+        （詳細なエラーはブラウザのコンソールをご確認ください）
     </div>
 
     <div id="controls">
         <div class="control-group">
-            <button id="scan1-button">QRコード（１）<br />スキャンする</button>
-            <button id="scan2-button" disabled>QRコード（２）<br />スキャンする</button>
+            <button id="scan1-button">QRコード（１）<br>スキャンする</button>
+            <button id="scan2-button" disabled>QRコード（２）<br>スキャンする</button>
         </div>
         <button id="reset-button">リセット</button>
     </div>
@@ -529,6 +529,7 @@
     </script>
 </body>
 </html>
+
 
 
 
