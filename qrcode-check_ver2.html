@@ -49,12 +49,20 @@
             display: block;
             object-fit: contain;
         }
+        /* コントロールボタンの新しいスタイル */
         #controls {
             margin-top: 10px;
+            display: grid;
+            grid-template-columns: 1fr auto; /* 2列のグリッドレイアウト */
+            gap: 10px; /* グリッド間の隙間 */
+            max-width: 500px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+        .control-group {
             display: flex;
-            justify-content: center;
             gap: 10px;
-            flex-wrap: wrap;
+            justify-content: flex-end; /* ボタンを右揃えに */
         }
         #controls button {
             padding: 10px 15px;
@@ -143,7 +151,6 @@
             margin-top: 10px;
             font-weight: bold;
         }
-        /* 追加: フォームとボタンのスタイル */
         #data-input {
             margin-top: 20px;
             text-align: center;
@@ -211,8 +218,10 @@
     </div>
 
     <div id="controls">
-        <button id="scan1-button">QRコード（１）スキャンする</button>
-        <button id="scan2-button" disabled>QRコード（２）スキャンする</button>
+        <div class="control-group">
+            <button id="scan1-button">QRコード（１）スキャンする</button>
+            <button id="scan2-button" disabled>QRコード（２）スキャンする</button>
+        </div>
         <button id="reset-button">リセット</button>
     </div>
 
@@ -512,5 +521,4 @@
         setInterval(updateCurrentTime, 60 * 1000);
     </script>
 </body>
-
 </html>
